@@ -7,7 +7,7 @@
     /**
      * Takes a nested object and returns a shallow object keyed with the path names
      * e.g. { "level1.level2": "value" }
-     * 
+     *
      * @param  {Object}      Nested object e.g. { level1: { level2: 'value' } }
      * @return {Object}      Shallow object with path names e.g. { 'level1.level2': 'value' }
      */
@@ -50,7 +50,7 @@
                 return false
             }
             result = result[fields[i]];
-            
+
             if (typeof result === 'undefined') {
                 if (return_exists)
                 {
@@ -65,7 +65,7 @@
         }
         return result;
     }
-    
+
     /**
      * @param {Object} obj                Object to fetch attribute from
      * @param {String} path               Object path e.g. 'user.name'
@@ -80,7 +80,7 @@
         var result = obj;
         for (var i = 0, n = fields.length; i < n; i++) {
             var field = fields[i];
-            
+
             //If the last in the path, set the value
             if (i === n - 1) {
                 options.unset ? delete result[field] : result[field] = val;
@@ -89,7 +89,7 @@
                 if (typeof result[field] === 'undefined' || ! _.isObject(result[field])) {
                     result[field] = {};
                 }
-                
+
                 //Move onto the next part of the path
                 result = result[field];
             }
@@ -101,7 +101,7 @@
     }
 
     var DeepModel = Backbone.Model.extend({
-       
+
         // Override get
         // Supports nested attributes via the syntax 'obj.attr' e.g. 'author.user.name'
         get: function(attr) {
@@ -143,7 +143,7 @@
             var escaped = this._escapedAttributes;
             var prev = this._previousAttributes || {};
 
-            
+
             // <custom code>
             attrs = objToPaths(attrs);
 
@@ -199,9 +199,21 @@
           // Silent changes are triggered.
           var changes = _.extend({}, options.changes, this._silent);
           this._silent = {};
+
           for (var attr in objToPaths(changes)) {
             this.trigger('change:' + attr, this, this.get(attr), options);
+
+            if ( attr.indexOf( "." ) > -1 ) {
+
+              this.triggerChangeAncestors( attr, options );
+
+            }
+            // if
+
           }
+          // for
+
+
           if (changing) return this;
 
           // Continue firing `"change"` events while there are pending changes.
@@ -230,13 +242,57 @@
           return changed;
         },
 
+
+        onChangeAncestor : function ( pattern, method ) {
+
+          (
+
+            this.changeAncestors || ( this.changeAncestors = [] )
+
+          ).push( { pattern : pattern, method : method } );
+
+        },
+        // onChangeAncestor
+
+
+        triggerChangeAncestors : function ( path, options ) {
+
+          var i, ancestor;
+
+          this.changeAncestors || ( this.changeAncestors = [] );
+
+          for ( i = 0 ; i < this.changeAncestors.length ; ++i ) {
+
+            ancestor = this.changeAncestors[ i ];
+
+            if (
+
+              ancestor.pattern.last_result = ancestor.pattern.exec( path )
+
+            ) {
+
+              ancestor.method.call(
+
+                this, this, options, path, ancestor.pattern
+
+              );
+
+            }
+            // if
+
+          }
+          // for
+
+        }
+        // triggerChangeAncestors
+
     });
-    
-    
+
+
     //Exports
     Backbone.DeepModel = DeepModel;
 
     //For use in NodeJS
     if (typeof module != 'undefined') module.exports = DeepModel;
-    
+
 })(Backbone);
